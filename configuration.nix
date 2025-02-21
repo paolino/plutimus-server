@@ -4,6 +4,7 @@
   nix.settings = {
     experimental-features = "nix-command flakes";
     auto-optimise-store = true;
+    max-jobs = 32;
   };
 
 
@@ -55,6 +56,8 @@
     zip
     zstd
     pinentry
+    nixVersions.nix_2_25
+    nixfmt
 
   ];
 
@@ -170,5 +173,5 @@
       sshag = "eval $(ssh-agent -s) && ssh-add ~/.ssh/ed25519";
     };
   };
-
+  programs.direnv.enable = true;
 }
