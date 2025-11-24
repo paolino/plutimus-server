@@ -6,45 +6,43 @@
     auto-optimise-store = true;
     max-jobs = 32;
   };
-
+  nix.binaryCachePublicKeys =
+    [ "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=" ];
+  nix.binaryCaches = [ "https://cache.iog.io" ];
 
   environment.systemPackages = with pkgs; [
 
-    aria2 # A lightweight multi-protocol & multi-source command-line download utility
-    btop # replacement of htop/nmon
     direnv
     dnsutils # `dig` + `nslookup`
-    eza # A modern replacement for ‘ls’
     file
     fzf # A command-line fuzzy finder
     gawk
+    gh
     git
+    gnumake
     gnupg
     gnused
     gnutar
-    iftop # network monitoring
-    iotop # io monitoring
-    ipcalc # it is a calculator for the IPv4/v6 addresses
-    iperf3
     jq # A lightweight and flexible command-line JSON processor
     just
-    ldns # replacement of `dig`, it provide the command `drill`
     lsof # list open files
     ltrace # library call monitoring
-    mtr # A network diagnostic tool
-    neofetch
+    nixVersions.nix_2_28
+    nixfmt
     nixpkgs-fmt
-    niv
     nmap # A utility for network discovery and security auditing
-    nnn # terminal file manager
     p7zip
+    pinentry
+    pinentry-tty
+    radicle-httpd
+    radicle-node
     ripgrep # recursively searches directories for a regex pattern
     socat # replacement of openbsd-netcat
     stgit
     strace # system call monitoring
+    tcpdump
     tmux
     tree
-    unzip
     unzip
     vim
     wget
@@ -55,9 +53,6 @@
     zip
     zip
     zstd
-    pinentry
-    nixVersions.nix_2_25
-    nixfmt
 
   ];
 
@@ -86,7 +81,6 @@
     options = [ "noatime" ];
   };
 
-
   documentation.nixos.enable = false;
   time.timeZone = "Europe/London";
   i18n.defaultLocale = "en_GB.UTF-8";
@@ -95,7 +89,8 @@
 
   boot.loader.grub.enable = true;
   boot.loader.grub.device = "/dev/sda";
-  boot.initrd.availableKernelModules = [ "ahci" "xhci_pci" "virtio_pci" "virtio_scsi" "sd_mod" "sr_mod" "ext4" ];
+  boot.initrd.availableKernelModules =
+    [ "ahci" "xhci_pci" "virtio_pci" "virtio_scsi" "sd_mod" "sr_mod" "ext4" ];
 
   users.users = {
     root.hashedPassword = "!"; # Disable root login
@@ -129,8 +124,12 @@
   system.stateVersion = "24.11"; # Did you read the comment?
   programs.nix-ld.enable = true;
   virtualisation.docker.enable = true;
-  nix.settings.extra-substituters = [ "https://cache.iog.io" "https://cache.nixos.org" ];
-  nix.settings.extra-trusted-public-keys = [ "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=" "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=" ];
+  nix.settings.extra-substituters =
+    [ "https://cache.iog.io" "https://cache.nixos.org" ];
+  nix.settings.extra-trusted-public-keys = [
+    "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ="
+    "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+  ];
   services.pcscd.enable = true;
   programs.gnupg.agent = {
     enable = true;
@@ -154,6 +153,12 @@
     # TODO add your custom bashrc here
     shellInit = ''
       export PATH="$PATH:$HOME/bin:$HOME/.local/bin:$HOME/go/bin"
+      export EDITOR="vim"
+      export DOMINIQUE_DID="did:key:z6MkiuWYPxbojmhUiGGWrzSuJK3HDpbbtWo3QMm3e9VP2gJP"
+      export ARNAUD_DID="did:key:z6MkhgPg6WShnhJcmfwox4G5yL3EvJ2zW8L31SZLD95yUi11"
+      export ANVIKING_DID="did:key:z6MkoqswZoM5EtGgsWyTYbrbAw2MXWd2JmSvsQ8Ns9jstmCX"
+      export PAWEL_DID="did:key:z6Mks4nj3eXrWhjEXknLooeH8ac9c8XcTSzmM7GaooaVyEMN"
+      export PAOLINO_DID="did:key:z6MksH6Yr4pkJqPYnY4N5e5a5bCdyCW88grKRkkK6KeMGwLN"
     '';
 
     # set some aliases, feel free to add more or remove some
@@ -169,9 +174,17 @@
       sfl = "stg float";
       ssi = "stg sink -t";
       sbc = "stg branch --create";
-      nxsw = "sudo nixos-rebuild switch -I nixos-config=/home/paolino/plutimus-server/configuration.nix";
+      nxsw =
+        "sudo nixos-rebuild switch -I nixos-config=/home/paolino/plutimus-server/configuration.nix";
       sshag = "eval $(ssh-agent -s) && ssh-add ~/.ssh/ed25519";
+      glg = "git log --graph --oneline";
     };
+  };
+  services.cron = {
+    enable = true;
+    systemCronJobs = [
+      "* * * * * docker ps -q -f health=unhealthy | xargs -r docker restart"
+    ];
   };
   programs.direnv.enable = true;
 }
