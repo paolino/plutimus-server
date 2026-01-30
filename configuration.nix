@@ -6,10 +6,6 @@
     auto-optimise-store = true;
     max-jobs = 32;
   };
-  nix.binaryCachePublicKeys =
-    [ "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=" ];
-  nix.binaryCaches = [ "https://cache.iog.io" ];
-
   environment.systemPackages = with pkgs; [
     claude-code-nix.packages.${pkgs.system}.default
 
@@ -52,7 +48,6 @@
     xfsprogs
     xz
     yq-go # yaml processor https://github.com/mikefarah/yq
-    zip
     zip
     zstd
 
@@ -158,7 +153,7 @@
   };
 
   programs.bash = {
-    enableCompletion = true;
+    completion.enable = true;
     # TODO add your custom bashrc here
     shellInit = ''
       export PATH="$PATH:$HOME/bin:$HOME/.local/bin:$HOME/go/bin"
@@ -184,7 +179,7 @@
       ssi = "stg sink -t";
       sbc = "stg branch --create";
       nxsw =
-        "sudo nixos-rebuild switch -I nixos-config=/home/paolino/plutimus-server/configuration.nix";
+        "sudo nixos-rebuild switch --flake /home/paolino/plutimus-server#hetzner-x86_64";
       sshag = "eval $(ssh-agent -s) && ssh-add ~/.ssh/ed25519";
       glg = "git log --graph --oneline";
     };
