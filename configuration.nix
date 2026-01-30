@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, claude-code-nix, ... }:
 
 {
   nix.settings = {
@@ -11,6 +11,7 @@
   nix.binaryCaches = [ "https://cache.iog.io" ];
 
   environment.systemPackages = with pkgs; [
+    claude-code-nix.packages.${pkgs.system}.default
 
     direnv
     dnsutils # `dig` + `nslookup`
@@ -27,15 +28,16 @@
     just
     lsof # list open files
     ltrace # library call monitoring
-    nixVersions.nix_2_28
+    # nixVersions.nix_2_28
     nixfmt
     nixpkgs-fmt
+    nodejs
     nmap # A utility for network discovery and security auditing
     p7zip
-    pinentry
+    pinentry-curses
     pinentry-tty
-    radicle-httpd
-    radicle-node
+    # radicle-httpd
+    # radicle-node
     ripgrep # recursively searches directories for a regex pattern
     socat # replacement of openbsd-netcat
     stgit
@@ -122,7 +124,14 @@
   # Before changing this value read the documentation for this option
   # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
   system.stateVersion = "24.11"; # Did you read the comment?
-  programs.nix-ld.enable = true;
+  programs.nix-ld = {
+    enable = true;
+    libraries = with pkgs; [
+      stdenv.cc.cc.lib  # This provides the up-to-date libstdc++.so.6 matching your system's GCC
+      # Add any other common libs if needed for unpatched binaries (e.g., zlib, openssl, etc.)
+      # The defaults are still included; this appends to them
+    ];
+  };
   virtualisation.docker.enable = true;
   nix.settings.extra-substituters =
     [ "https://cache.iog.io" "https://cache.nixos.org" ];
@@ -187,4 +196,5 @@
     ];
   };
   programs.direnv.enable = true;
+  programs.direnv.nix-direnv.enable = true;
 }
