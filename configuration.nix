@@ -1,96 +1,81 @@
 { pkgs, claude-code-nix, ... }:
 
 {
+  system.stateVersion = "24.11";
+
+  # Boot
+  boot = {
+    loader.grub = {
+      enable = true;
+      device = "/dev/sda";
+    };
+    initrd.availableKernelModules = [
+      "ahci"
+      "ext4"
+      "sd_mod"
+      "sr_mod"
+      "virtio_pci"
+      "virtio_scsi"
+      "xhci_pci"
+    ];
+  };
+
+  # Filesystems
+  fileSystems = {
+    "/" = {
+      device = "/dev/disk/by-label/nixos";
+      fsType = "ext4";
+    };
+    "/boot" = {
+      device = "/dev/disk/by-label/boot";
+      fsType = "ext4";
+    };
+    "/nix" = {
+      device = "/dev/disk/by-label/nix";
+      fsType = "ext4";
+      neededForBoot = true;
+      options = [ "noatime" ];
+    };
+    "/code" = {
+      device = "/dev/disk/by-label/code";
+      fsType = "ext4";
+      options = [ "noatime" ];
+    };
+    "/node" = {
+      device = "/dev/disk/by-label/node";
+      fsType = "ext4";
+      options = [ "noatime" ];
+    };
+  };
+
+  # Nix
   nix.settings = {
-    experimental-features = "nix-command flakes";
     auto-optimise-store = true;
+    experimental-features = "nix-command flakes";
     max-jobs = 32;
-  };
-  environment.systemPackages = with pkgs; [
-    claude-code-nix.packages.${pkgs.system}.default
-
-    direnv
-    dnsutils # `dig` + `nslookup`
-    file
-    fzf # A command-line fuzzy finder
-    gawk
-    gh
-    git
-    gnumake
-    gnupg
-    gnused
-    gnutar
-    jq # A lightweight and flexible command-line JSON processor
-    just
-    lsof # list open files
-    ltrace # library call monitoring
-    # nixVersions.nix_2_28
-    nixfmt
-    nixpkgs-fmt
-    nodejs
-    nmap # A utility for network discovery and security auditing
-    p7zip
-    pinentry-curses
-    pinentry-tty
-    # radicle-httpd
-    # radicle-node
-    ripgrep # recursively searches directories for a regex pattern
-    socat # replacement of openbsd-netcat
-    stgit
-    strace # system call monitoring
-    tcpdump
-    tmux
-    tree
-    unzip
-    vim
-    wget
-    which
-    xfsprogs
-    xz
-    yq-go # yaml processor https://github.com/mikefarah/yq
-    zip
-    zstd
-
-  ];
-
-  fileSystems."/" = {
-    device = "/dev/disk/by-label/nixos";
-    fsType = "ext4";
-  };
-  fileSystems."/boot" = {
-    device = "/dev/disk/by-label/boot";
-    fsType = "ext4";
-  };
-  fileSystems."/nix" = {
-    device = "/dev/disk/by-label/nix";
-    fsType = "ext4";
-    neededForBoot = true;
-    options = [ "noatime" ];
-  };
-  fileSystems."/code" = {
-    device = "/dev/disk/by-label/code";
-    fsType = "ext4";
-    options = [ "noatime" ];
-  };
-  fileSystems."/node" = {
-    device = "/dev/disk/by-label/node";
-    fsType = "ext4";
-    options = [ "noatime" ];
+    trusted-users = [ "@wheel" ];
+    extra-substituters = [
+      "https://cache.iog.io"
+      "https://cache.nixos.org"
+    ];
+    extra-trusted-public-keys = [
+      "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ="
+      "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+    ];
   };
 
-  documentation.nixos.enable = false;
+  # Locale & Time
   time.timeZone = "Europe/London";
   i18n.defaultLocale = "en_GB.UTF-8";
   console.keyMap = "us";
-  nix.settings.trusted-users = [ "@wheel" ];
+  documentation.nixos.enable = false;
 
-  boot.loader.grub.enable = true;
-  boot.loader.grub.device = "/dev/sda";
-  boot.initrd.availableKernelModules =
-    [ "ahci" "xhci_pci" "virtio_pci" "virtio_scsi" "sd_mod" "sr_mod" "ext4" ];
+  # Networking
+  networking.firewall.allowedTCPPorts = [ 22 80 443 ];
 
+  # Users
   users.users = {
-    root.hashedPassword = "!"; # Disable root login
+    root.hashedPassword = "!";
     paolino = {
       isNormalUser = true;
       extraGroups = [ "wheel" "docker" ];
@@ -100,96 +85,145 @@
     };
   };
 
+  # Security
   security.sudo.wheelNeedsPassword = false;
 
-  services.openssh = {
-    enable = true;
-    settings = {
-      PermitRootLogin = "no";
-      PasswordAuthentication = false;
-      KbdInteractiveAuthentication = false;
+  # Services
+  services = {
+    openssh = {
+      enable = true;
+      settings = {
+        PermitRootLogin = "no";
+        PasswordAuthentication = false;
+        KbdInteractiveAuthentication = false;
+      };
+    };
+    pcscd.enable = true;
+    cron = {
+      enable = true;
+      systemCronJobs = [
+        "* * * * * docker ps -q -f health=unhealthy | xargs -r docker restart"
+      ];
     };
   };
-  networking.firewall.allowedTCPPorts = [ 22 443 80 ];
 
-  # This value determines the NixOS release from which the default
-  # settings for stateful data, like file locations and database versions
-  # on your system were taken. It‘s perfectly fine and recommended to leave
-  # this value at the release version of the first install of this system.
-  # Before changing this value read the documentation for this option
-  # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
-  system.stateVersion = "24.11"; # Did you read the comment?
-  programs.nix-ld = {
-    enable = true;
-    libraries = with pkgs; [
-      stdenv.cc.cc.lib  # This provides the up-to-date libstdc++.so.6 matching your system's GCC
-      # Add any other common libs if needed for unpatched binaries (e.g., zlib, openssl, etc.)
-      # The defaults are still included; this appends to them
-    ];
-  };
+  # Virtualisation
   virtualisation.docker.enable = true;
-  nix.settings.extra-substituters =
-    [ "https://cache.iog.io" "https://cache.nixos.org" ];
-  nix.settings.extra-trusted-public-keys = [
-    "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ="
-    "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+
+  # Programs
+  programs = {
+    bash = {
+      completion.enable = true;
+      shellInit = ''
+        export PATH="$PATH:$HOME/bin:$HOME/.local/bin:$HOME/go/bin"
+        export EDITOR="vim"
+        export DOMINIQUE_DID="did:key:z6MkiuWYPxbojmhUiGGWrzSuJK3HDpbbtWo3QMm3e9VP2gJP"
+        export ARNAUD_DID="did:key:z6MkhgPg6WShnhJcmfwox4G5yL3EvJ2zW8L31SZLD95yUi11"
+        export ANVIKING_DID="did:key:z6MkoqswZoM5EtGgsWyTYbrbAw2MXWd2JmSvsQ8Ns9jstmCX"
+        export PAWEL_DID="did:key:z6Mks4nj3eXrWhjEXknLooeH8ac9c8XcTSzmM7GaooaVyEMN"
+        export PAOLINO_DID="did:key:z6MksH6Yr4pkJqPYnY4N5e5a5bCdyCW88grKRkkK6KeMGwLN"
+      '';
+      shellAliases = {
+        # Git
+        glg = "git log --graph --oneline";
+        gpf = "git push --force origin HEAD";
+        # Stgit
+        pa = "stg push -a";
+        sa = "stg add";
+        sbc = "stg branch --create";
+        sfl = "stg float";
+        sg = "stg goto";
+        sn = "stg new";
+        sr = "stg refresh";
+        ssi = "stg sink -t";
+        ssq = "stg squash";
+        # System
+        cf = "just format";
+        nxsw = "sudo nixos-rebuild switch --flake /home/paolino/plutimus-server#hetzner-x86_64";
+        sshag = "eval $(ssh-agent -s) && ssh-add ~/.ssh/ed25519";
+      };
+    };
+    direnv = {
+      enable = true;
+      nix-direnv.enable = true;
+    };
+    gnupg.agent = {
+      enable = true;
+      enableSSHSupport = true;
+    };
+    nix-ld = {
+      enable = true;
+      libraries = with pkgs; [ stdenv.cc.cc.lib ];
+    };
+    starship = {
+      enable = true;
+      settings = {
+        add_newline = true;
+        aws.disabled = true;
+        gcloud.disabled = true;
+        line_break.disabled = false;
+      };
+    };
+  };
+
+  # Packages
+  environment.systemPackages = with pkgs; [
+    claude-code-nix.packages.${pkgs.system}.default
+
+    # Core utils
+    file
+    gawk
+    gnumake
+    gnused
+    gnutar
+    tree
+    which
+
+    # Compression
+    p7zip
+    unzip
+    xz
+    zip
+    zstd
+
+    # Development
+    gh
+    git
+    just
+    nodejs
+    stgit
+    vim
+
+    # Nix tools
+    nixfmt
+    nixpkgs-fmt
+
+    # Network
+    dnsutils
+    nmap
+    socat
+    tcpdump
+    wget
+
+    # Search
+    fzf
+    ripgrep
+
+    # Security
+    gnupg
+    pinentry-curses
+    pinentry-tty
+
+    # Shell
+    direnv
+    tmux
+
+    # System
+    jq
+    lsof
+    ltrace
+    strace
+    xfsprogs
+    yq-go
   ];
-  services.pcscd.enable = true;
-  programs.gnupg.agent = {
-    enable = true;
-    enableSSHSupport = true;
-  };
-
-  # starship - an customizable prompt for any shell
-  programs.starship = {
-    enable = true;
-    # custom settings
-    settings = {
-      add_newline = true;
-      aws.disabled = true;
-      gcloud.disabled = true;
-      line_break.disabled = false;
-    };
-  };
-
-  programs.bash = {
-    completion.enable = true;
-    # TODO add your custom bashrc here
-    shellInit = ''
-      export PATH="$PATH:$HOME/bin:$HOME/.local/bin:$HOME/go/bin"
-      export EDITOR="vim"
-      export DOMINIQUE_DID="did:key:z6MkiuWYPxbojmhUiGGWrzSuJK3HDpbbtWo3QMm3e9VP2gJP"
-      export ARNAUD_DID="did:key:z6MkhgPg6WShnhJcmfwox4G5yL3EvJ2zW8L31SZLD95yUi11"
-      export ANVIKING_DID="did:key:z6MkoqswZoM5EtGgsWyTYbrbAw2MXWd2JmSvsQ8Ns9jstmCX"
-      export PAWEL_DID="did:key:z6Mks4nj3eXrWhjEXknLooeH8ac9c8XcTSzmM7GaooaVyEMN"
-      export PAOLINO_DID="did:key:z6MksH6Yr4pkJqPYnY4N5e5a5bCdyCW88grKRkkK6KeMGwLN"
-    '';
-
-    # set some aliases, feel free to add more or remove some
-    shellAliases = {
-      sn = "stg new";
-      sr = "stg refresh";
-      sa = "stg add";
-      gpf = "git push --force origin HEAD";
-      cf = "just format";
-      sg = "stg goto";
-      pa = "stg push -a";
-      ssq = "stg squash";
-      sfl = "stg float";
-      ssi = "stg sink -t";
-      sbc = "stg branch --create";
-      nxsw =
-        "sudo nixos-rebuild switch --flake /home/paolino/plutimus-server#hetzner-x86_64";
-      sshag = "eval $(ssh-agent -s) && ssh-add ~/.ssh/ed25519";
-      glg = "git log --graph --oneline";
-    };
-  };
-  services.cron = {
-    enable = true;
-    systemCronJobs = [
-      "* * * * * docker ps -q -f health=unhealthy | xargs -r docker restart"
-    ];
-  };
-  programs.direnv.enable = true;
-  programs.direnv.nix-direnv.enable = true;
 }
