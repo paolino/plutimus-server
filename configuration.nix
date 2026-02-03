@@ -195,6 +195,7 @@
     vim
 
     # Nix tools
+    cachix
     nixfmt
     nixpkgs-fmt
 
