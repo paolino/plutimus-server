@@ -107,6 +107,17 @@
     };
   };
 
+  # Persistent SSH agent (used by voice-agent container)
+  systemd.user.services.ssh-agent = {
+    description = "SSH Agent";
+    wantedBy = [ "default.target" ];
+    serviceConfig = {
+      Type = "simple";
+      ExecStart = "${pkgs.openssh}/bin/ssh-agent -D -a %t/ssh-agent.sock";
+      Environment = "SSH_AUTH_SOCK=%t/ssh-agent.sock";
+    };
+  };
+
   # Virtualisation
   virtualisation.docker.enable = true;
 
@@ -116,6 +127,7 @@
       completion.enable = true;
       shellInit = ''
         export PATH="$PATH:$HOME/bin:$HOME/.local/bin:$HOME/go/bin"
+        export SSH_AUTH_SOCK="/run/user/$(id -u)/ssh-agent.sock"
         export EDITOR="vim"
         export DOMINIQUE_DID="did:key:z6MkiuWYPxbojmhUiGGWrzSuJK3HDpbbtWo3QMm3e9VP2gJP"
         export ARNAUD_DID="did:key:z6MkhgPg6WShnhJcmfwox4G5yL3EvJ2zW8L31SZLD95yUi11"
@@ -140,17 +152,13 @@
         # System
         cf = "just format";
         nxsw = "sudo nixos-rebuild switch --flake /home/paolino/plutimus-server#hetzner-x86_64";
-        sshag = "eval $(ssh-agent -s) && ssh-add ~/.ssh/ed25519";
       };
     };
     direnv = {
       enable = true;
       nix-direnv.enable = true;
     };
-    gnupg.agent = {
-      enable = true;
-      enableSSHSupport = true;
-    };
+    gnupg.agent.enable = true;
     nix-ld = {
       enable = true;
       libraries = with pkgs; [ stdenv.cc.cc.lib ];
