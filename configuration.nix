@@ -9,6 +9,7 @@
   environment.systemPackages = with pkgs; [
     claude-code-nix.packages.${pkgs.system}.default
 
+    cachix
     direnv
     dnsutils # `dig` + `nslookup`
     file
